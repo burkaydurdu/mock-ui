@@ -24,6 +24,15 @@
 (def mime-types [{:type "JSON" :text "application/json"}
                  {:type "XML" :text "application/xml"}])
 
+(defn- methods-color [method]
+  (case method
+    "GET"     "bg-green-300"
+    "POST"    "bg-blue-300"
+    "PUT"     "bg-indigo-300"
+    "DELETE"  "bg-red-300"
+    "OPTIONS" "bg-gray-300"
+    "PATCH"   "bg-yellow-300"))
+
 (defn- code-color [code]
   (cond
     (and (>= code 100) (< code 200)) "#a0aec0"
@@ -33,13 +42,13 @@
     (and (>= code 500) (< code 600)) "#f56565"
     :else "#4299e1"))
 
-(def input-class-text "flex-grow shadow appearance-none border rounded
-                       py-2 px-3 text-gray-700 leading-tight
+(def input-class-text "flex-grow shadow appearance-none border
+                       text-gray-700 leading-tight
                        focus:outline-none focus:shadow-outline")
 
 (def select-class-text "flex-grow-0 shadow appearance-none bg-gray-200
-                        border border-gray-200 text-gray-700 py-3 px-4
-                        pr-8 rounded leading-tight focus:outline-none
+                        border border-gray-200 text-gray-700
+                        leading-tight focus:outline-none
                         focus:bg-white focus:border-gray-500 cursor-pointer")
 
 (def modal-class-text "min-w-screen h-screen animated fadeIn faster fixed
@@ -48,32 +57,111 @@
 
 (def button-class-text "text-xl border-2 rounded p-1 bg-transparent")
 
+(defn- create-workspace-form []
+  [:div.flex.m-5
+   [:input
+    {:class       (str input-class-text " p-2 rounded-l")
+     :placeholder "Workspace"
+     :on-change   #(dispatch [::events/add-data [:create-form :workspace :name] (-> % .-target .-value)])}]
+   [:button
+    {:class    "p-1 bg-transparent rounded-r border shadow bg-yellow-300 border-yellow-300"
+     :on-click #(dispatch [::events/create-workspace])}
+    "Create"]])
+
+(defn- create-request-form []
+  [:div.flex.m-5
+   [:select
+    {:class (str select-class-text " p-1 rounded-l")
+     :on-change #(dispatch [::events/add-data [:create-form :request :method] (-> % .-target .-value)])}
+    [:option
+     {:disabled true
+      :selected true}
+     "Method"]
+    (for [method http-methods]
+      ^{:key method}
+      [:option method])]
+   [:input
+    {:class       (str input-class-text " p-2")
+     :placeholder "Path"
+     :on-change   #(dispatch [::events/add-data [:create-form :request :path] (-> % .-target .-value)])}]
+   [:button
+    {:class    "p-1 bg-transparent rounded-r border shadow bg-yellow-300 border-yellow-300"
+     :on-click #(dispatch [::events/create-request])}
+    "Create"]])
+
+(defn- create-modal-form []
+  (r/create-class
+    {:component-will-unmount #(dispatch [::events/reset :create-form])
+     :reagent-render (fn [modal-type]
+                        [:div
+                         {:class modal-class-text}
+                         [:div.w-full.max-w-lg.p-5.relative.mx-auto.my-auto.rounded-xl.shadow-lg.bg-white
+                          [:img.absolute.top-2.right-2.text-red-500.cursor-pointer
+                           {:src      "/img/remove-button.svg"
+                            :on-click #(dispatch [::events/reset :create-form])
+                            :width    20}]
+                          (if (= :workspace modal-type)
+                            [create-workspace-form]
+                            [create-request-form])]])}))
+
+(defn- dropdown [options]
+  [:div.dropdown.inline-block.relative
+   [:button.text-gray-700.font-semibold.rounded.inline-flex.items-center
+    [:img
+     {:src "/img/menu.svg"
+      :width 20}]]
+   [:ul.dropdown-menu.absolute.hidden.text-gray-700.pt-1.z-40
+    (for [option options]
+      [:li.rounded
+       {:class (:class option)}
+       [:a.py-2.px-4.block.whitespace-no-wrap.cursor-pointer
+        {:on-click (:on-click-fn option)}
+        (:title option)]])]])
+
 (defn- workspace-list-view []
   [:div
    [:p.text-2xl "Workspaces"]
    (for [workspace @(subscribe [::subs/workspaces])]
      ^{:key (:id workspace)}
-     [:div (:name workspace)])])
+     [:div.w-full.flex.justify-between.py-1.cursor-pointer
+      {:on-click #(do
+                    (.stopPropagation %)
+                    (dispatch [::events/get-requests (:id workspace)]))}
+      [:p (:name workspace)]
+      [dropdown [{:title "Delete"
+                  :class "bg-red-300 hover:bg-red-400"
+                  :on-click-fn #(dispatch [::events/delete-workspace (:id workspace)])}]]])
+   [:button
+    {:class "text-sm text-green-500"
+     :on-click #(dispatch [::events/add-data [:create-form :type] :workspace])}
+    "Add +"]])
 
 (defn- request-list-view []
   [:div
    [:p.text-2xl "Requests"]
    (for [request @(subscribe [::subs/requests])]
      ^{:key (:id request)}
-     [:div
-      [:span (str "[" (:method request) "]")]
-      [:span (:path request)]])])
+     [:div.w-full.flex.py-1
+      [:p
+       {:class (str "rounded-l py-1 px-2 " (methods-color (:method request)))}
+       (str (:method request))]
+      [:p.bg-green-100.rounded-r.py-1.px-2.w-full (:path request)]])
+   [:button
+    {:class "text-sm text-green-500"
+     :on-click #(dispatch [::events/add-data [:create-form :type] :request])}
+    "Add +"]])
 
 (defn- active-status-code []
   [:div.mb-2
    [:p.text-xl.mb-1 "Status Code"]
    [:select.block
-     {:class select-class-text
+     {:class (str select-class-text " py-3 px-4 pr-8 rounded")
       :on-change #(dispatch [::events/add-data [:response :code] (-> % .-target .-value js/parseInt)])}
      (for [status-code http-status-codes]
        ^{:key (str "active-status-code-" (:code status-code))}
        [:option
-        {:value (:code status-code)}
+        {:selected (= @(subscribe [::subs/response-code]) (:code status-code))
+         :value (:code status-code)}
         (str (:code status-code) ": " (:text status-code))])]])
 
 (defn- status-code [code]
@@ -113,22 +201,23 @@
        ^{:key (str "active-header-field-" index)}
        [:div.flex.justify-between.mb-2
         [:input
-         {:class (str input-class-text " mr-2")
+         {:class (str input-class-text " mr-2 py-2 px-3 rounded")
           :on-change #(dispatch [::events/update-response-header index :key (-> % .-target .-value)])
           :value (:key item)}]
         [:input
-         {:class input-class-text
+         {:class (str input-class-text " py-2 px-3 rounded")
           :on-change #(dispatch [::events/update-response-header index :val (-> % .-target .-value)])
           :value (:val item)}]]) @(subscribe [::subs/response-header])))])
 
 (defn- active-body-type []
   [:select.block.my-2
     {:on-change #(dispatch [::events/add-data [:response :type] (-> % .-target .-value)])
-     :class select-class-text}
+     :class (str select-class-text " py-3 px-4 pr-8 rounded")}
     (for [mime-type mime-types]
       ^{:key (str "active-body-type-" (:type mime-type))}
       [:option
-       {:value (:type mime-type)}
+       {:selected (= @(subscribe [::subs/response-type]) (:type mime-type))
+        :value (:type mime-type)}
        (:text mime-type)])])
 
 (defn- active-body-field []
@@ -136,7 +225,7 @@
    [:p.text-xl "Body"]
    [active-body-type]
    [:textarea
-    {:class       (str input-class-text " w-full")
+    {:class       (str input-class-text " w-full py-2 px-3 rounded")
      :value       @(subscribe [::subs/response-body])
      :on-change   #(dispatch [::events/add-data [:response :body] (-> % .-target .-value)])
      :placeholder "Body"}]])
@@ -148,13 +237,14 @@
     [:span.text-indigo-500 (some #(when (= (:type %) mime-type) (:text %)) mime-types)]]
    [:div.border.rounded.p-3.bg-gray-200.whitespace-pre-wrap body]])
 
-(defn- action-button-select []
+(defn- action-button-select [response]
   [:select.absolute.top-5.right-5
+   {:on-change #(dispatch [::events/edit-response response])}
    [:option
-    {:on-click #()}
+    {:value :edit}
     "Edit"]
    [:option
-    {:on-click #()}
+    {:value :delete}
     "Delete"]])
 
 (defn- response-list-view []
@@ -166,7 +256,7 @@
      "+"]]
    (for [response @(subscribe [::subs/responses])]
     [:div.border.rounded.shadow.p-5.my-5.relative
-     [action-button-select]
+     [action-button-select response]
      [status-code (:code response)]
      [headers-field (:headers response)]
      [body-field (:body response) (:mimeType response)]])])
@@ -176,14 +266,17 @@
     [:p.text-2xl "Request"]
     [:div.flex.w-full
      [:select
-      {:class select-class-text}
+      {:class (str select-class-text " py-3 px-4 pr-8 rounded-l")}
       (for [method http-methods]
         ^{:key method}
         [:option method])]
      [:input
       {:type        "text"
-       :class       (str input-class-text " w-full")
-       :placeholder "Path"}]]])
+       :class       (str input-class-text " w-full py-2 px-3")
+       :placeholder "Path"}]
+     [:button
+      {:class (str "p-1 bg-transparent rounded-r border shadow bg-yellow-300 border-yellow-300")}
+      "Update"]]])
 
 (defn- active-button-box []
   [:div.flex.justify-end.mt-5
@@ -210,19 +303,22 @@
                           [active-button-box]]]])}))
 
 (defn- main-view []
-  [:div.p-10
+  [:div.p-5
    [request-box-view]
    [response-list-view]
    (when @(subscribe [::subs/modal-visible?])
-    [create-modal-view])])
+    [create-modal-view])
+   (when-let [modal-type @(subscribe [::subs/modal-form-type])]
+     [create-modal-form modal-type])])
 
 (defn dashboard-view []
   (r/create-class
-    {:reagent-render (fn []
+    {:component-did-mount #(dispatch [::events/get-workspaces])
+     :reagent-render (fn []
                        [:div.relative.min-h-screen.flex
-                        [:div.w-64.p-10
+                        [:div.w-72.p-5
                          [workspace-list-view]]
-                        [:div.w-64.shadow-md.p-10
+                        [:div.w-72.shadow-md.p-5
                          [request-list-view]]
                         [:div.flex-1.h-screen.overflow-y-auto
                          [main-view]]])}))

@@ -3,37 +3,55 @@
    [re-frame.core :refer [reg-sub]]))
 
 (reg-sub
- ::name
- (fn [db]
-   (:name db)))
-
-(reg-sub
  ::active-panel
  (fn [db _]
-   (:active-panel db)))
+  (:active-panel db)))
 
-;;Mocky
-;;
-;;
+(reg-sub
+  ::current-user
+  (fn [db _]
+    (:current-user db)))
 
-(def workspaces [{:id "1" :name "facebook"}
-                 {:id "2" :name "twitter"}
-                 {:id "3" :name "Instagram"}])
+(reg-sub
+  ::token
+  :<- [::current-user]
+  (fn [current-user _]
+    (:token current-user)))
+
+(reg-sub
+  ::alert
+  (fn [db _]
+    (:alert db)))
+
+(reg-sub
+  ::create-form
+  (fn [db _]
+    (:create-form db)))
+
+(reg-sub
+  ::modal-form-type
+  :<- [::create-form]
+  (fn [create-form _]
+    (:type create-form)))
+
+(reg-sub
+  ::form-workspace
+  :<- [::create-form]
+  (fn [create-form _]
+    (:workspace create-form)))
 
 (reg-sub
   ::workspaces
-  (fn [_ _]
-    workspaces))
-    ;(:workspaces db)))
+  (fn [db _]
+    (:workspaces db)))
 
 (def requests [{:id "11" :path "shop/live" :method "PUT"}
                {:id "12" :path "shop/dog" :method "GET"}])
 
 (reg-sub
   ::requests
-  (fn [_ _]
-    requests))
-    ;;(:requests db))
+  (fn [db _]
+    (:requests db)))
 
 (def responses [{:id "111"
                  :headers {:x-fre "radar"
@@ -67,6 +85,18 @@
   :<- [::response]
   (fn [response _]
     (:body response)))
+
+(reg-sub
+  ::response-code
+  :<- [::response]
+  (fn [response _]
+    (:code response)))
+
+(reg-sub
+  ::response-type
+  :<- [::response]
+  (fn [response _]
+    (:type response)))
 
 (reg-sub
   ::modal-visible?

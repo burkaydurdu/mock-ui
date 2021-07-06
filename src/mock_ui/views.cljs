@@ -4,6 +4,7 @@
    [mock-ui.routes :as routes]
    [mock-ui.logistration-views :as logistration-views]
    [mock-ui.dashboard-views :as dashboard-views]
+   [mock-ui.common-views :as common-views]
    [mock-ui.subs :as subs]))
 
 ;; ---
@@ -25,4 +26,6 @@
 ;; ----
 (defn main-panel []
   (let [active-panel (re-frame/subscribe [::subs/active-panel])]
-    (routes/panels @active-panel)))
+    [:div.h-full
+     [common-views/alert]
+     (routes/panels @active-panel)]))

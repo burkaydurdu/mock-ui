@@ -2,6 +2,7 @@
   (:require
    [bidi.bidi :as bidi]
    [pushy.core :as pushy]
+   [cemerick.url :as url]
    [re-frame.core :as re-frame]
    [mock-ui.events :as events]))
 
@@ -29,6 +30,21 @@
 
 (defonce history
   (pushy/pushy dispatch parse))
+
+(defn window-origin []
+  (if-let [origin (-> js/window .-location .-origin)]
+    origin
+    (str (-> js/window .-location .-protocol) "//"
+         (-> js/window .-location .-hostname)
+         (if-let [port (-> js/window .-location .-port)]
+           (str ":" port)
+           ""))))
+
+(defn set-uri-token! [uri]
+  (let [u (url/url (window-origin))
+        k (str u uri)]
+    (pushy/set-token! history k)
+    (dispatch (parse uri))))
 
 (defn navigate!
   [handler]
