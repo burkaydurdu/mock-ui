@@ -1,25 +1,4 @@
-(ns mock-ui.util
-  (:require [ajax.core :as ajax]
-            [mock-ui.subs :as subs]
-            [re-frame.core :refer [subscribe]]))
-
-(goog-define api-url "http://localhost:8080")
-
-(defn create-request-map
-  ([type uri]
-   (create-request-map type uri nil nil))
-  ([type uri on-success]
-   (create-request-map type uri on-success nil))
-  ([type uri on-success on-fail]
-   (cond-> {:headers         {"Authorization" @(subscribe [::subs/token])}
-            :method          type
-            :uri             (str api-url uri)
-            :format          (ajax/json-request-format)
-            :response-format (ajax/json-response-format {:keywords? true})
-            :on-success      (if (vector? on-success) on-success [on-success])
-            :on-failure      (if (vector? on-fail) on-fail [on-fail])}
-     (nil? on-success) (assoc :on-success [:no-http-on-ok])
-     (nil? on-fail) (assoc :on-failure [:no-http-on-failure]))))
+(ns mock-ui.util)
 
 (defn dissoc-in
   ([m ks]
@@ -71,3 +50,14 @@
 (defn sleep
   [f ms]
   (js/setTimeout f ms))
+
+(defn find-kv
+  "coll is vector
+   k is key
+   v is value"
+  [coll k v]
+  (some #(when (= v (k %)) %) coll))
+
+(defn find-and-all-update
+  [k d v coll]
+  (mapv #(if (= (k %) d) v %) coll))

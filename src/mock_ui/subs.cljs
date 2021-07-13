@@ -1,6 +1,7 @@
 (ns mock-ui.subs
   (:require
-   [re-frame.core :refer [reg-sub]]))
+   [re-frame.core :refer [reg-sub]]
+   [mock-ui.util :as util]))
 
 (reg-sub
  ::active-panel
@@ -29,6 +30,12 @@
     (:create-form db)))
 
 (reg-sub
+  ::selected-request
+  (fn [db _]
+    (let [request-id (-> db :selected :request)]
+      (util/find-kv (:requests db) :id request-id))))
+
+(reg-sub
   ::modal-form-type
   :<- [::create-form]
   (fn [create-form _]
@@ -45,34 +52,25 @@
   (fn [db _]
     (:workspaces db)))
 
-(def requests [{:id "11" :path "shop/live" :method "PUT"}
-               {:id "12" :path "shop/dog" :method "GET"}])
-
 (reg-sub
   ::requests
   (fn [db _]
     (:requests db)))
 
-(def responses [{:id "111"
-                 :headers {:x-fre "radar"
-                           :t-tek "sebro"}
-                 :body "{\"name\": \"Hasan\"}"
-                 :mimeType "JSON"
-                 :code 200}
-                {:id "112"
-                 :headers {:x-tfre "Toradars"
-                           :t-tek "sebro"}
-                 :body "<name>Burkay</name>"
-                 :mimeType "XML"
-                 :code 500}])
-
 (reg-sub
   ::responses
-  (fn [_ _]
-    responses))
-    ;; (:responses db)
+  (fn [db _]
+    (:responses db)))
 
-(reg-sub ::response :response)
+(reg-sub
+  ::response
+  :response)
+
+(reg-sub
+  ::response-id
+  :<- [::response]
+  (fn [response _]
+    (:id response)))
 
 (reg-sub
   ::response-header

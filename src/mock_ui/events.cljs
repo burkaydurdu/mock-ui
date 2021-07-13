@@ -3,6 +3,7 @@
    [re-frame.core :refer [reg-event-fx reg-event-db inject-cofx]]
    [mock-ui.db :as db]
    [mock-ui.util :as util]
+   [mock-ui.helper :as helper]
    [day8.re-frame.http-fx]
    [day8.re-frame.tracing :refer-macros [fn-traced]]))
 
@@ -71,20 +72,6 @@
       (merge db {:modal-visible? true
                  :response {:headers [] :code 100 :type "JSON"}})))
 
-(reg-event-fx
-  ::save
-  (fn [{:keys [db]} _]
-    (let [response (:response db)
-          headers (reduce #(conj %1 (hash-map (-> %2 :key keyword) (:val %2)))
-                          {}
-                          (:headers response))
-          request-body {:code (:code response)
-                        :headers headers
-                        :mimeType (:type response)
-                        :body (:body response)}]
-      (println request-body)
-      {})))
-
 (reg-event-db
   ::edit-response
   (fn [db [_ response]]
@@ -92,10 +79,11 @@
                           []
                           (:headers response))]
       (merge db {:modal-visible? true
-                 :response {:headers headers
-                            :type (:mimeType response)
-                            :code (:code response)
-                            :body (:body response)}}))))
+                 :response {:id      (:id response)
+                            :headers headers
+                            :type    (:mimeType response)
+                            :code    (:code response)
+                            :body    (:body response)}}))))
 
 (reg-event-fx
   ::sign-up
@@ -103,9 +91,9 @@
     (let [form (-> db :sign-up :form)]
       (if (and (util/contains-many? form :email :name :password :password-confirm)
                (= (:password form) (:password-confirm form)))
-        {:http-xhrio (merge (util/create-request-map :post "/users/sign-up"
-                                                     ::sign-up-result-ok
-                                                     ::sign-up-result-fail)
+        {:http-xhrio (merge (helper/create-request-map :post "/users/sign-up"
+                                                       ::sign-up-result-ok
+                                                       ::sign-up-result-fail)
                             {:params (dissoc form :password-confirm)})}
         {:db (assoc-in db [:errors :sign-up] true)}))))
 
@@ -122,9 +110,9 @@
   (fn [{:keys [db]} _]
     (let [form (-> db :sign-in :form)]
       (if (util/contains-many? form :email :password)
-        {:http-xhrio (merge (util/create-request-map :post "/users/sign-in"
-                                                     ::sign-in-result-ok
-                                                     ::sign-in-result-fail)
+        {:http-xhrio (merge (helper/create-request-map :post "/users/sign-in"
+                                                       ::sign-in-result-ok
+                                                       ::sign-in-result-fail)
                             {:params form})}
         {:db (assoc-in db [:errors :sign-in] true)}))))
 
@@ -144,8 +132,8 @@
 (reg-event-fx
   ::get-workspaces
   (fn [_ _]
-    {:http-xhrio (util/create-request-map :get "/workspaces"
-                                          ::get-workspaces-result-ok)}))
+    {:http-xhrio (helper/create-request-map :get "/workspaces"
+                                            ::get-workspaces-result-ok)}))
 
 (reg-event-db
   ::get-workspaces-result-ok
@@ -156,8 +144,8 @@
   ::create-workspace
   (fn [{:keys [db]} _]
     (when-let [workspace (-> db :create-form :workspace :name)]
-      {:http-xhrio (merge (util/create-request-map :post "/workspaces"
-                                                   ::create-workspace-result-ok)
+      {:http-xhrio (merge (helper/create-request-map :post "/workspaces"
+                                                     ::create-workspace-result-ok)
                           {:params {:name workspace}})})))
 
 (reg-event-db
@@ -171,8 +159,8 @@
   ::delete-workspace
   (fn [_ [_ id]]
     (when id
-      {:http-xhrio (util/create-request-map :delete (str "/workspaces/" id)
-                                            ::delete-workspace-result-ok)})))
+      {:http-xhrio (helper/create-request-map :delete (str "/workspaces/" id)
+                                              ::delete-workspace-result-ok)})))
 
 (reg-event-db
   ::delete-workspace-result-ok
@@ -183,8 +171,8 @@
   ::get-requests
   (fn [{:keys [db]} [_ workspace-id]]
     {:db         (assoc-in db [:selected :workspace] workspace-id)
-     :http-xhrio (util/create-request-map :get (str "/requests/workspace/" workspace-id)
-                                          ::get-requests-result-ok)}))
+     :http-xhrio (helper/create-request-map :get (str "/requests/workspace/" workspace-id)
+                                            ::get-requests-result-ok)}))
 
 (reg-event-db
   ::get-requests-result-ok
@@ -192,13 +180,25 @@
     (assoc db :requests result)))
 
 (reg-event-fx
+  ::get-responses
+  (fn [{:keys [db]} [_ request-id]]
+    {:db         (assoc-in db [:selected :request] request-id)
+     :http-xhrio (helper/create-request-map :get (str "/responses/request/" request-id)
+                                            ::get-responses-result-ok)}))
+
+(reg-event-db
+  ::get-responses-result-ok
+  (fn [db [_ result]]
+    (assoc db :responses result)))
+
+(reg-event-fx
   ::create-request
   (fn [{:keys [db]} _]
     (let [form      (-> db :create-form :request)
           workspace (-> db :selected :workspace)]
       (when (and workspace (util/contains-many? form :method :path))
-       {:http-xhrio (merge (util/create-request-map :post "/requests"
-                                                    ::create-request-result-ok)
+       {:http-xhrio (merge (helper/create-request-map :post "/requests"
+                                                      ::create-request-result-ok)
                            {:params {:method      (:method form)
                                      :path        (:path form)
                                      :workspaceId workspace}})}))))
@@ -211,14 +211,61 @@
         (dissoc :create-form))))
 
 (reg-event-fx
+  ::create-response
+  (fn [{:keys [db]} _]
+    (let [response     (:response db)
+          headers      (reduce #(conj %1 (hash-map (-> %2 :key keyword) (:val %2)))
+                               {}
+                               (:headers response))
+          request-id   (-> db :selected :request)
+          request-body {:code      (:code response)
+                        :headers   headers
+                        :mimeType  (:type response)
+                        :body      (:body response)
+                        :requestId request-id}]
+      (when request-id
+        {:http-xhrio (merge (helper/create-request-map :post "/responses"
+                                                       ::create-response-result-ok
+                                                       ::create-response-result-fail)
+                            {:params request-body})}))))
+
+(reg-event-db
+  ::create-response-result-ok
+  (fn [db [_ result]]
+    (-> db
+        (update :responses conj result)
+        (assoc :modal-visible? false))))
+
+(reg-event-fx
+  ::create-response-result-fail
+  (constantly {:dispatch [::alert "Something went wrong" true]}))
+
+(reg-event-fx
   ::update-response
   (fn [{:keys [db]} _]
-    {}))
+    (let [response     (:response db)
+          headers      (reduce #(conj %1 (hash-map (-> %2 :key keyword) (:val %2)))
+                               {}
+                               (:headers response))
+          request-body {:id        (:id response)
+                        :code      (:code response)
+                        :headers   headers
+                        :mimeType  (:type response)
+                        :body      (:body response)}]
+      {:http-xhrio (merge (helper/create-request-map :put "/responses"
+                                                     ::update-response-result-ok
+                                                     ::update-response-result-fail)
+                          {:params request-body})})))
 
 (reg-event-db
   ::update-response-result-ok
-  (fn [db _]
-    db))
+  (fn [db [_ result]]
+    (assoc db :responses (util/find-and-all-update :id (:id result) result (:responses db))
+              :modal-visible? false)))
+
+(reg-event-fx
+  ::update-response-result-fail
+  (constantly {:dispatch [::alert "Something went wrong" true]}))
 
 (reg-event-fx
   ::delete-response
