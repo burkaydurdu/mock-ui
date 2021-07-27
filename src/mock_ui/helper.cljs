@@ -5,6 +5,14 @@
 
 (goog-define api-url "http://localhost:8080")
 
+(defn base-url []
+  (str api-url
+       "/api/"
+       (:id @(subscribe [::subs/current-user]))
+       "/"
+       (:name @(subscribe [::subs/selected-workspace]))
+       "/"))
+
 (defn create-request-map
   ([type uri]
    (create-request-map type uri nil nil))

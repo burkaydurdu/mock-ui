@@ -130,6 +130,11 @@
 
 
 (reg-event-fx
+  ::route
+  (fn [_ [_ route]]
+    {:change-uri! route}))
+
+(reg-event-fx
   ::get-workspaces
   (fn [_ _]
     {:http-xhrio (helper/create-request-map :get "/workspaces"
@@ -181,10 +186,11 @@
 
 (reg-event-fx
   ::get-responses
-  (fn [{:keys [db]} [_ request-id]]
-    {:db         (assoc-in db [:selected :request] request-id)
-     :http-xhrio (helper/create-request-map :get (str "/responses/request/" request-id)
-                                            ::get-responses-result-ok)}))
+  (fn [{:keys [db]} [_ request]]
+    (when-let [id (:id request)]
+     {:db         (assoc db :request request)
+      :http-xhrio (helper/create-request-map :get (str "/responses/request/" id)
+                                             ::get-responses-result-ok)})))
 
 (reg-event-db
   ::get-responses-result-ok
@@ -211,13 +217,41 @@
         (dissoc :create-form))))
 
 (reg-event-fx
+  ::update-request
+  (fn [{:keys [db]} _]
+    (when-let [request (:request db)]
+      {:http-xhrio (merge (helper/create-request-map :put "/requests"
+                                                     ::update-request-result-ok)
+                          {:params request})})))
+
+(reg-event-fx
+  ::update-request-result-ok
+  (fn [{:keys [db]} [_ result]]
+    {:dispatch [::alert "Success" "Updated request"]
+     :db (assoc db :requests (util/find-and-all-update :id (:id result) result (:requests db)))}))
+
+(reg-event-fx
+  ::delete-request
+  (fn [{:keys [db]} _]
+    (when-let [id (-> db :request :id)]
+      {:http-xhrio (helper/create-request-map :delete (str "/requests/" id)
+                                              ::delete-request-result-ok)})))
+
+(reg-event-db
+  ::delete-request-result-ok
+  (fn [db [_ result]]
+    (-> db
+        (assoc :requests (filterv #(not= (:id result) (:id %)) (:requests db)))
+        (dissoc :request :responses))))
+
+(reg-event-fx
   ::create-response
   (fn [{:keys [db]} _]
     (let [response     (:response db)
           headers      (reduce #(conj %1 (hash-map (-> %2 :key keyword) (:val %2)))
                                {}
                                (:headers response))
-          request-id   (-> db :selected :request)
+          request-id   (-> db :request :id)
           request-body {:code      (:code response)
                         :headers   headers
                         :mimeType  (:type response)
@@ -238,7 +272,7 @@
 
 (reg-event-fx
   ::create-response-result-fail
-  (constantly {:dispatch [::alert "Something went wrong" true]}))
+  (constantly {:dispatch [::alert "Error" "Something went wrong" true]}))
 
 (reg-event-fx
   ::update-response
@@ -269,10 +303,29 @@
 
 (reg-event-fx
   ::delete-response
-  (fn [{:keys [db]} [_ id]]
-    {}))
-
+  (fn [_ [_ id]]
+    {:http-xhrio (helper/create-request-map :delete (str "/responses/" id)
+                                            ::delete-response-result-ok)}))
 (reg-event-db
   ::delete-response-result-ok
+  (fn [db [_ result]]
+    (assoc db :responses (filterv #(not= (:id result) (:id %)) (:responses db)))))
+
+(reg-event-fx
+  ::logout
+  (fn [{:keys [db]} _]
+    (when (:current-user db)
+      {:http-xhrio (helper/create-request-map :post "/users/logout"
+                                              ::logout-result-ok)})))
+
+(reg-event-fx
+  ::logout-result-ok
+  (fn [{:keys [db]} _]
+    {:db (dissoc db :current-user)
+     :remove-user! "user"
+     :change-uri! "/sign-in"}))
+
+(reg-event-db
+  ::remove-dashboard-data
   (fn [db _]
-    db))
+    (dissoc db :workspaces :selected :requests :request :responses)))

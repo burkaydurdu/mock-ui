@@ -2,7 +2,9 @@
   (:require [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
             [mock-ui.subs :as subs]
-            [mock-ui.events :as events]))
+            [mock-ui.events :as events]
+            [mock-ui.helper :as helper]
+            [mock-ui.common-views :refer [dropdown]]))
 
 (def http-methods ["GET" "POST" "PUT" "DELETE" "OPTIONS" "PATCH"])
 
@@ -53,7 +55,7 @@
 
 (def modal-class-text "min-w-screen h-screen animated fadeIn faster fixed
                        left-0 top-0 flex justify-center items-center inset-0
-                       z-50 outline-none focus:outline-none bg-gray-500 bg-opacity-50")
+                       z-40 outline-none focus:outline-none bg-gray-500 bg-opacity-50")
 
 (def button-class-text "text-xl border-2 rounded p-1 bg-transparent")
 
@@ -104,21 +106,6 @@
                             [create-workspace-form]
                             [create-request-form])]])}))
 
-(defn- dropdown [options dropdown-class]
-  [:div.dropdown.inline-block
-   {:class dropdown-class}
-   [:button.text-gray-700.font-semibold.rounded.inline-flex.items-center
-    [:img
-     {:src "/img/menu.svg"
-      :width 20}]]
-   [:ul.dropdown-menu.absolute.hidden.text-gray-700.z-40.border.rounded.bg-white
-    (for [option options]
-      [:li.bg-transparent
-       {:class (:class option)}
-       [:a.py-2.px-4.block.whitespace-no-wrap.cursor-pointer
-        {:on-click (:on-click-fn option)}
-        (:title option)]])]])
-
 (defn- workspace-list-view []
   [:div
    [:p.text-2xl "Workspaces"]
@@ -129,9 +116,10 @@
                     (.stopPropagation %)
                     (dispatch [::events/get-requests (:id workspace)]))}
       [:p (:name workspace)]
-      [dropdown [{:title "Delete"
-                  :class "hover:text-red-500"
-                  :on-click-fn #(dispatch [::events/delete-workspace (:id workspace)])}]]])
+      [dropdown
+       {:options [{:title "Delete"
+                   :class "hover:text-red-500"
+                   :on-click-fn #(dispatch [::events/delete-workspace (:id workspace)])}]}]])
    [:button
     {:class "text-sm text-green-500"
      :on-click #(dispatch [::events/add-data [:create-form :type] :workspace])}
@@ -143,7 +131,7 @@
    (for [request @(subscribe [::subs/requests])]
      ^{:key (:id request)}
      [:div.w-full.flex.py-1.cursor-pointer
-      {:on-click #(dispatch [::events/get-responses (:id request)])}
+      {:on-click #(dispatch [::events/get-responses request])}
       [:p
        {:class (str "rounded-l py-1 px-2 " (methods-color (:method request)))}
        (str (:method request))]
@@ -240,48 +228,51 @@
    [:div.border.rounded.p-3.bg-gray-200.whitespace-pre-wrap body]])
 
 (defn- response-list-view []
-  [:div.w-full.mt-2
+  [:div.w-full.mt-2.pb-2
    [:div.flex.items-center.justify-between
     [:span.text-2xl "Responses"]
     [:span.text-3xl.cursor-pointer.text-indigo-500
      {:on-click #(dispatch [::events/open-modal-for-create])}
      "+"]]
    (for [response @(subscribe [::subs/responses])]
-    [:div.border.rounded.shadow.p-5.my-5.relative
-     [dropdown [{:title "Update"
-                 :class "hover:text-yellow-500"
-                 :on-click-fn #(dispatch [::events/edit-response response])}
-                {:title "Delete"
-                 :class "hover:text-red-500"
-                 :on-click-fn #(dispatch [::events/delete-response (:id response)])}]
-               "absolute top-5 right-10"]
-     [status-code (:code response)]
-     [headers-field (:headers response)]
-     [body-field (:body response) (:mimeType response)]])])
+     ^{:key (str "response-list-" response)}
+     [:div.border.rounded.shadow.p-5.my-5
+      [:div.flex.justify-between
+       [status-code (:code response)]
+       [dropdown
+        {:options [{:title "Update"
+                    :class "hover:text-yellow-500"
+                    :on-click-fn #(dispatch [::events/edit-response response])}
+                   {:title "Delete"
+                    :class "hover:text-red-500"
+                    :on-click-fn #(dispatch [::events/delete-response (:id response)])}]}]]
+      [headers-field (:headers response)]
+      [body-field (:body response) (:mimeType response)]])])
 
-(defn- request-box-view []
-  (let [request @(subscribe [::subs/selected-request])]
-    [:div
-      [:p.text-2xl "Request"]
-      [:div.flex.w-full
-       [:select
-        {:class (str select-class-text " py-3 px-4 pr-8 rounded-l")}
-        (for [method http-methods]
-          ^{:key method}
-          [:option
-           {:selected (= method (:method request))}
-           method])]
-       [:input
-        {:type        "text"
-         :value       (:path request)
-         :class       (str input-class-text " w-full py-2 px-3")
-         :placeholder "Path"}]
-       [:button
-        {:class (str "p-1 bg-transparent border shadow bg-yellow-300 border-yellow-300")}
-        "Update"]
-       [:button
-        {:class (str "p-1 bg-transparent rounded-r border shadow bg-red-300 border-red-300")}
-        "Delete"]]]))
+(defn- request-box-view [request]
+  [:div.flex.w-full
+   [:select
+    {:class (str select-class-text " py-3 px-4 pr-8 rounded-l")
+     :on-change #(dispatch [::events/add-data [:request :method] (-> % .-target .-value)])}
+    (for [method http-methods]
+      ^{:key method}
+      [:option
+       {:selected (= method (:method request))}
+       method])]
+   [:input
+    {:type        "text"
+     :value       (:path request)
+     :on-change   #(dispatch [::events/add-data [:request :path] (-> % .-target .-value)])
+     :class       (str input-class-text " w-full py-2 px-3")
+     :placeholder "Path"}]
+   [:button
+    {:class    (str "p-1 bg-transparent border shadow bg-yellow-300 border-yellow-300")
+     :on-click #(dispatch [::events/update-request])}
+    "Update"]
+   [:button
+    {:class (str "p-1 bg-transparent rounded-r border shadow bg-red-300 border-red-300")
+     :on-click #(dispatch [::events/delete-request])}
+    "Delete"]])
 
 (defn- active-button-box []
   (let [response-id @(subscribe [::subs/response-id])]
@@ -308,10 +299,25 @@
                           [active-body-field]
                           [active-button-box]]]])}))
 
+(defn- empty-box []
+  [:div.h-screen.flex.justify-center.items-center
+   [:img
+    {:src "/img/box.svg"
+     :width 60}]])
+
+(defn- base-url []
+  [:div.border.rounded.shadow.p-2.mb-5
+   (helper/base-url)])
+
+
 (defn- main-view []
-  [:div.px-10.py-5
-   [request-box-view]
-   [response-list-view]
+  [:div.p-5.h-screen
+   (if-let [request @(subscribe [::subs/request])]
+    [:<>
+      [base-url]
+      [request-box-view request]
+      [response-list-view]]
+    [empty-box])
    (when @(subscribe [::subs/modal-visible?])
     [create-modal-view])
    (when-let [modal-type @(subscribe [::subs/modal-form-type])]
@@ -320,11 +326,12 @@
 (defn dashboard-view []
   (r/create-class
     {:component-did-mount #(dispatch [::events/get-workspaces])
+     :component-will-unmount #(dispatch [::events/remove-dashboard-data])
      :reagent-render (fn []
-                       [:div.relative.min-h-screen.flex
-                        [:div.w-72.p-5
+                       [:div.relative.min-h-screen.lg:flex
+                        [:div.xl:w-72.md:w-full.shadow-md.p-5.lg:shadow-none
                          [workspace-list-view]]
-                        [:div.w-72.shadow-md.p-5
+                        [:div.xl:w-72.md:w-full.shadow-md.p-5
                          [request-list-view]]
-                        [:div.flex-1.h-screen.overflow-y-auto
+                        [:div.xl:flex-1.md:w-full.mc-main.lg:overflow-y-auto
                          [main-view]]])}))

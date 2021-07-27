@@ -16,10 +16,28 @@
      [:p (:message alert)]]))
 
 (defn- alert-box []
-    (r/create-class
-      {:component-did-mount #(util/sleep (fn [] (dispatch [::events/reset :alert])) 3000)
-       :reagent-render (fn [] [alert-box-body-view])}))
+  (r/create-class
+    {:component-did-mount #(util/sleep (fn [] (dispatch [::events/reset :alert])) 3000)
+     :reagent-render (fn [] [alert-box-body-view])}))
 
 (defn alert []
   (when @(subscribe [::subs/alert])
     [alert-box]))
+
+(defn dropdown [{:keys [options dropdown-class title]}]
+  [:div.dropdown.inline-block.relative
+   {:class dropdown-class}
+   [:button.font-semibold.rounded.inline-flex.items-center
+    (if title
+      title
+      [:img
+       {:src "/img/menu.svg"
+        :width 20}])]
+   [:ul.dropdown-menu.absolute.hidden.text-gray-700.z-40.border.rounded.bg-white.right-2
+    (for [option options]
+      ^{:key (str "dropdown-" option)}
+      [:li.bg-transparent
+       {:class (:class option)}
+       [:a.py-2.px-4.block.whitespace-no-wrap.cursor-pointer
+        {:on-click (:on-click-fn option)}
+        (:title option)]])]])

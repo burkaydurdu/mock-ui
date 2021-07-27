@@ -40,10 +40,9 @@
 
 (defn get-current-user-map []
   (try
-    (into (sorted-map)
-          (as-> (.getItem js/localStorage "user") data
-            (.parse js/JSON data)
-            (js->clj data :keywordize-keys true)))
+    (as-> (.getItem js/localStorage "user") data
+      (.parse js/JSON data)
+      (js->clj data :keywordize-keys true))
     (catch js/Error _
       {})))
 
