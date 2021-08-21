@@ -104,3 +104,8 @@
   ::modal-visible?
   (fn [db]
     (:modal-visible? db)))
+
+(reg-sub
+  ::socket-messages
+  (fn [db _]
+    (sort-by :created-at (:socket-messages db))))

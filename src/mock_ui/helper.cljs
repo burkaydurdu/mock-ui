@@ -1,9 +1,15 @@
 (ns mock-ui.helper
   (:require [ajax.core :as ajax]
             [mock-ui.subs :as subs]
+            [mock-ui.util :as util]
             [re-frame.core :refer [subscribe]]))
 
 (goog-define api-url "http://localhost:8080")
+
+(goog-define socket-url "ws://localhost:8080")
+
+(defn socket-connection-url [user-id workspace-id request-id]
+  (util/format "%s/request/%s/%s/%s" socket-url user-id workspace-id request-id))
 
 (defn base-url []
   (str api-url

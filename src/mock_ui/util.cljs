@@ -1,4 +1,5 @@
-(ns mock-ui.util)
+(ns mock-ui.util
+  (:require [goog.string :as gstring]))
 
 (defn dissoc-in
   ([m ks]
@@ -60,3 +61,7 @@
 (defn find-and-all-update
   [k d v coll]
   (mapv #(if (= (k %) d) v %) coll))
+
+(defn format
+  [& args]
+  (apply gstring/format args))

@@ -175,9 +175,12 @@
 (reg-event-fx
   ::get-requests
   (fn [{:keys [db]} [_ workspace-id]]
-    {:db         (assoc-in db [:selected :workspace] workspace-id)
+    {:db         (-> db
+                     (assoc-in [:selected :workspace] workspace-id)
+                     (dissoc :request :requests :responses))
      :http-xhrio (helper/create-request-map :get (str "/requests/workspace/" workspace-id)
-                                            ::get-requests-result-ok)}))
+                                            ::get-requests-result-ok)
+     :dispatch   [::disconnect-ws]}))
 
 (reg-event-db
   ::get-requests-result-ok
@@ -190,7 +193,9 @@
     (when-let [id (:id request)]
      {:db         (assoc db :request request)
       :http-xhrio (helper/create-request-map :get (str "/responses/request/" id)
-                                             ::get-responses-result-ok)})))
+                                             ::get-responses-result-ok)
+      :dispatch-n [[::disconnect-ws]
+                   [::connect-ws]]})))
 
 (reg-event-db
   ::get-responses-result-ok
@@ -329,3 +334,17 @@
   ::remove-dashboard-data
   (fn [db _]
     (dissoc db :workspaces :selected :requests :request :responses)))
+
+(reg-event-fx
+  ::connect-ws
+  (fn [{:keys [db]} _]
+    (let [user-id      (-> db :current-user :id)
+          workspace-id (-> db :selected :workspace) ;; [TODO] Change data structure
+          request-id   (-> db :request :id)]
+      {:connect-ws (helper/socket-connection-url user-id workspace-id request-id)})))
+
+(reg-event-fx
+  ::disconnect-ws
+  (fn [{:keys [db]} _]
+    (when-let [socket (:socket db)]
+     {:disconnect-ws socket})))

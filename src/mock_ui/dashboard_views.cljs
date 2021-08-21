@@ -4,7 +4,8 @@
             [mock-ui.subs :as subs]
             [mock-ui.events :as events]
             [mock-ui.helper :as helper]
-            [mock-ui.common-views :refer [dropdown]]))
+            [mock-ui.common-views :refer [dropdown]]
+            ["pretty-print-json" :refer [prettyPrintJson]]))
 
 (def http-methods ["GET" "POST" "PUT" "DELETE" "OPTIONS" "PATCH"])
 
@@ -309,15 +310,27 @@
   [:div.border.rounded.shadow.p-2.mb-5
    (helper/base-url)])
 
+(defn- socket-message-box []
+  (let [messages @(subscribe [::subs/socket-messages])]
+    [:div
+      (for [message messages]
+        [:pre
+         {:key (:createdAt message)
+          :style {:font-size 11}
+          :dangerouslySetInnerHTML {:__html (.toHtml prettyPrintJson (clj->js message))}}])]))
+
+(defn- main-box [request]
+  [:<>
+   [base-url]
+   [request-box-view request]
+   [response-list-view]
+   [socket-message-box]])
 
 (defn- main-view []
   [:div.p-5.h-screen
    (if-let [request @(subscribe [::subs/request])]
-    [:<>
-      [base-url]
-      [request-box-view request]
-      [response-list-view]]
-    [empty-box])
+     [main-box request]
+     [empty-box])
    (when @(subscribe [::subs/modal-visible?])
     [create-modal-view])
    (when-let [modal-type @(subscribe [::subs/modal-form-type])]
