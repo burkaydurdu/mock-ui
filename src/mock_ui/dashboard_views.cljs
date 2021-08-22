@@ -4,6 +4,7 @@
             [mock-ui.subs :as subs]
             [mock-ui.events :as events]
             [mock-ui.helper :as helper]
+            [mock-ui.util :as util]
             [mock-ui.common-views :refer [dropdown]]
             ["pretty-print-json" :refer [prettyPrintJson]]))
 
@@ -67,7 +68,7 @@
      :placeholder "Workspace"
      :on-change   #(dispatch [::events/add-data [:create-form :workspace :name] (-> % .-target .-value)])}]
    [:button
-    {:class    "p-1 bg-transparent rounded-r border shadow bg-yellow-300 border-yellow-300"
+    {:class    "p-1 bg-transparent rounded-r border shadow bg-green-500 border-green-500 text-white"
      :on-click #(dispatch [::events/create-workspace])}
     "Create"]])
 
@@ -88,7 +89,7 @@
      :placeholder "Path"
      :on-change   #(dispatch [::events/add-data [:create-form :request :path] (-> % .-target .-value)])}]
    [:button
-    {:class    "p-1 bg-transparent rounded-r border shadow bg-yellow-300 border-yellow-300"
+    {:class    "p-1 bg-transparent rounded-r border shadow bg-green-500 border-green-500 text-white"
      :on-click #(dispatch [::events/create-request])}
     "Create"]])
 
@@ -99,10 +100,8 @@
                         [:div
                          {:class modal-class-text}
                          [:div.w-full.max-w-lg.p-5.relative.mx-auto.my-auto.rounded-xl.shadow-lg.bg-white
-                          [:img.absolute.top-2.right-2.text-red-500.cursor-pointer
-                           {:src      "/img/remove-button.svg"
-                            :on-click #(dispatch [::events/reset :create-form])
-                            :width    20}]
+                          [:i.far.fa-times-circle.text-xl.absolute.top-2.right-2.text-red-500.cursor-pointer
+                            {:on-click #(dispatch [::events/reset :create-form])}]
                           (if (= :workspace modal-type)
                             [create-workspace-form]
                             [create-request-form])]])}))
@@ -146,13 +145,13 @@
   [:div.mb-2
    [:p.text-xl.mb-1 "Status Code"]
    [:select.block
-     {:class (str select-class-text " py-3 px-4 pr-8 rounded")
+     {:class     (str select-class-text " py-3 px-4 pr-8 rounded")
       :on-change #(dispatch [::events/add-data [:response :code] (-> % .-target .-value js/parseInt)])}
      (for [status-code http-status-codes]
        ^{:key (str "active-status-code-" (:code status-code))}
        [:option
         {:selected (= @(subscribe [::subs/response-code]) (:code status-code))
-         :value (:code status-code)}
+         :value    (:code status-code)}
         (str (:code status-code) ": " (:text status-code))])]])
 
 (defn- status-code [code]
@@ -203,12 +202,12 @@
 (defn- active-body-type []
   [:select.block.my-2
     {:on-change #(dispatch [::events/add-data [:response :type] (-> % .-target .-value)])
-     :class (str select-class-text " py-3 px-4 pr-8 rounded")}
+     :class     (str select-class-text " py-3 px-4 pr-8 rounded")}
     (for [mime-type mime-types]
       ^{:key (str "active-body-type-" (:type mime-type))}
       [:option
        {:selected (= @(subscribe [::subs/response-type]) (:type mime-type))
-        :value (:type mime-type)}
+        :value    (:type mime-type)}
        (:text mime-type)])])
 
 (defn- active-body-field []
@@ -221,20 +220,25 @@
      :on-change   #(dispatch [::events/add-data [:response :body] (-> % .-target .-value)])
      :placeholder "Body"}]])
 
-(defn- body-field [body mime-type]
+(defn- body-field [id body mime-type]
   [:div
    [:p.flex.items-center.justify-between.mb-1
     [:span.text-2xl.mr-1 "Body"]
     [:span.text-indigo-500 (some #(when (= (:type %) mime-type) (:text %)) mime-types)]]
-   [:div.border.rounded.p-3.bg-gray-200.whitespace-pre-wrap body]])
+   [:div.border.rounded.p-3.bg-gray-200.whitespace-pre-wrap
+    (if (= mime-type "JSON")
+      [:pre.whitespace-pre-wrap
+       {:key id
+        :dangerouslySetInnerHTML {:__html (.toHtml prettyPrintJson (.parse js/JSON body))}}]
+      body)]])
 
 (defn- response-list-view []
   [:div.w-full.mt-2.pb-2
    [:div.flex.items-center.justify-between
     [:span.text-2xl "Responses"]
-    [:span.text-3xl.cursor-pointer.text-indigo-500
+    [:span.text-3xl.cursor-pointer.text-green-500
      {:on-click #(dispatch [::events/open-modal-for-create])}
-     "+"]]
+     [:i.fas.fa-plus-circle]]]
    (for [response @(subscribe [::subs/responses])]
      ^{:key (str "response-list-" response)}
      [:div.border.rounded.shadow.p-5.my-5
@@ -242,18 +246,18 @@
        [status-code (:code response)]
        [dropdown
         {:options [{:title "Update"
-                    :class "hover:text-yellow-500"
+                    :class "hover:text-green-500"
                     :on-click-fn #(dispatch [::events/edit-response response])}
                    {:title "Delete"
                     :class "hover:text-red-500"
                     :on-click-fn #(dispatch [::events/delete-response (:id response)])}]}]]
       [headers-field (:headers response)]
-      [body-field (:body response) (:mimeType response)]])])
+      [body-field (:id response) (:body response) (:mimeType response)]])])
 
 (defn- request-box-view [request]
   [:div.flex.w-full
    [:select
-    {:class (str select-class-text " py-3 px-4 pr-8 rounded-l")
+    {:class     (str select-class-text " py-3 px-4 pr-8 rounded-l")
      :on-change #(dispatch [::events/add-data [:request :method] (-> % .-target .-value)])}
     (for [method http-methods]
       ^{:key method}
@@ -264,14 +268,14 @@
     {:type        "text"
      :value       (:path request)
      :on-change   #(dispatch [::events/add-data [:request :path] (-> % .-target .-value)])
-     :class       (str input-class-text " w-full py-2 px-3")
+     :class       (str input-class-text " w-full py-2 px-3 rounded-r")
      :placeholder "Path"}]
    [:button
-    {:class    (str "p-1 bg-transparent border shadow bg-yellow-300 border-yellow-300")
+    {:class    (str "p-1 bg-transparent rounded border-2 shadow bg-white border-green-500 text-green-500 mx-1")
      :on-click #(dispatch [::events/update-request])}
     "Update"]
    [:button
-    {:class (str "p-1 bg-transparent rounded-r border shadow bg-red-300 border-red-300")
+    {:class (str "p-1 bg-transparent rounded border-2 shadow bg-white border-red-500 text-red-500")
      :on-click #(dispatch [::events/delete-request])}
     "Delete"]])
 
@@ -279,11 +283,11 @@
   (let [response-id @(subscribe [::subs/response-id])]
     [:div.flex.justify-end.mt-5
      [:button
-      {:class (str button-class-text " text-red-500 border-red-300 mr-2 hover:border-red-500")
+      {:class (str button-class-text " text-red-500 border-red-500 mr-2 hover:border-red-500")
        :on-click #(dispatch [::events/add-data [:modal-visible?] false])}
       "Cancel"]
      [:button
-      {:class (str button-class-text " text-green-500 border-green-300 hover:border-green-500")
+      {:class (str button-class-text " text-green-500 border-green-500 hover:border-green-500")
        :on-click #(dispatch [(if response-id ::events/update-response ::events/create-response)])}
       (if response-id "Update" "Save")]]))
 
@@ -307,34 +311,37 @@
      :width 60}]])
 
 (defn- base-url []
-  [:div.border.rounded.shadow.p-2.mb-5
-   (helper/base-url)])
+  (let [text (helper/base-url)]
+    [:div.border.rounded.shadow.p-2.mb-5.flex.justify-between.items-center
+     text
+     [:i.fas.fa-copy.cursor-pointer
+      {:on-click #(util/copy-to-clipboard! text)}]]))
 
 (defn- socket-message-box []
   (let [messages @(subscribe [::subs/socket-messages])]
-    [:div
-      (for [message messages]
-        [:pre
+    [:div.w-full.lg:overflow-y-auto.bg-gray-200.p-5.xl:ml-5.mc-main
+     [:p.text-2xl.flex.justify-between
+      [:span.underline "Realtime Request Logs"]
+      [:span.live-icon]]
+     (for [message messages]
+       ^{:key (:createdAt message)}
+       [:<>
+        [:pre.whitespace-pre-wrap.py-5
          {:key (:createdAt message)
           :style {:font-size 11}
-          :dangerouslySetInnerHTML {:__html (.toHtml prettyPrintJson (clj->js message))}}])]))
-
-(defn- main-box [request]
-  [:<>
-   [base-url]
-   [request-box-view request]
-   [response-list-view]
-   [socket-message-box]])
+          :dangerouslySetInnerHTML {:__html (.toHtml prettyPrintJson (clj->js message))}}]
+        [:hr]])]))
 
 (defn- main-view []
-  [:div.p-5.h-screen
+  [:div.p-5.xl:h-screen
    (if-let [request @(subscribe [::subs/request])]
-     [main-box request]
-     [empty-box])
-   (when @(subscribe [::subs/modal-visible?])
-    [create-modal-view])
-   (when-let [modal-type @(subscribe [::subs/modal-form-type])]
-     [create-modal-form modal-type])])
+     [:div.xl:flex.xl:justify-between.lg:overflow-y-auto
+       [:div.w-full.xl:overflow-y-auto.mc-main
+         [base-url]
+         [request-box-view request]
+         [response-list-view]]
+      [socket-message-box]]
+     [empty-box])])
 
 (defn dashboard-view []
   (r/create-class
@@ -346,5 +353,9 @@
                          [workspace-list-view]]
                         [:div.xl:w-72.md:w-full.shadow-md.p-5
                          [request-list-view]]
-                        [:div.xl:flex-1.md:w-full.mc-main.lg:overflow-y-auto
-                         [main-view]]])}))
+                        [:div.xl:flex-1.md:w-full
+                         [main-view]]
+                        (when @(subscribe [::subs/modal-visible?])
+                          [create-modal-view])
+                        (when-let [modal-type @(subscribe [::subs/modal-form-type])]
+                         [create-modal-form modal-type])])}))

@@ -32,8 +32,12 @@
                           [input-view {:text "email" :type "text" :path [:sign-up :form :email]}]
                           [input-view {:text "password" :type "password" :path [:sign-up :form :password]}]
                           [input-view {:text "password confirm" :type "password" :path [:sign-up :form :password-confirm]}]
-                          [:div.flex.items-center.justify-between
-                           [button-view {:text "Sign-up" :action ::events/sign-up}]]]]])}))
+                          [:div.text-center
+                           [button-view {:text "Sign-up" :action ::events/sign-up}]]
+                          [:div.text-center.mt-5
+                           [:a.underline
+                            {:href "/sign-in"}
+                            "Sign-In"]]]]])}))
 
 (defn sign-in-view []
   (r/create-class
@@ -44,5 +48,9 @@
                          [:form.bg-white.shadow-md.rounded.px-8.pt-6.pb-8.mb-4
                           [input-view {:text "email" :type "text" :path [:sign-in :form :email]}]
                           [input-view {:text "password" :type "password" :path [:sign-in :form :password]}]
-                          [:div.flex.items-center.justify-between
-                           [button-view {:text "Sign-in" :action ::events/sign-in}]]]]])}))
+                          [:div.text-center
+                           [button-view {:text "Sign-in" :action ::events/sign-in}]]
+                          [:div.text-center.mt-5
+                           [:a.underline
+                            {:href "/sign-up"}
+                            "Sign-Up"]]]]])}))

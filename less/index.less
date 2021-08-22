@@ -11,6 +11,39 @@
 	}
 }
 
+.live-icon {
+  @keyframes live {
+    0% {
+      transform: scale(1, 1);
+    }
+    100% {
+      transform: scale(3.5, 3.5);
+      background-color: rgba(255, 0, 0, 0);
+    }
+  }
+  display: inline-block;
+  background-color: rgb(72, 187, 120);
+  width: 10px;
+  height: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  &:before {
+    content: '';
+    display: block;
+    background-color: rgba(72, 187, 120, 0.6);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    animation: live 2s ease-in-out -1s infinite;
+  }
+}
+
 .mc-main {
-  height: ~"calc(100vh - 4rem)";
+  height: ~"calc(100vh - 5rem)";
+}
+
+@media (max-width: 1024px) {
+  .mc-main {
+    height: initial;
+  }
 }

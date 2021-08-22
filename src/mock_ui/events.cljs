@@ -18,20 +18,19 @@
   (fn-traced [_ [_ handler]]
              {:navigate handler}))
 
-;; [TODO] Look at this and should be improve that
 (reg-event-fx
   ::set-active-panel
   (fn-traced [{:keys [db]} [_ active-panel]]
              (let [current-user (:current-user db)
-                   not-valid?   (and (#{:sign-in-panel :sign-up-panel} active-panel)
-                                     current-user)
-                   active-panel (if not-valid?
-                                  :dashboard-panel
-                                  active-panel)
-                   body         {:db (assoc db :active-panel active-panel)}]
-               (if not-valid?
-                 (assoc body :change-uri! "/dashboard")
-                 body))))
+                   case-1 (when (#{:sign-in-panel :sign-up-panel} active-panel)
+                            (if current-user :dashboard-panel active-panel))
+                   case-2 (when (= :dashboard-panel active-panel)
+                           (if current-user active-panel :sign-in-panel))
+                   valid? (= (or case-1 case-2) active-panel)
+                   body   {:db (assoc db :active-panel active-panel)}]
+               (if valid?
+                 body
+                 {:change-uri! (if case-1 "/dashboard" "/sign-in")}))))
 
 (reg-event-db
   ::reset-in
@@ -348,3 +347,10 @@
   (fn [{:keys [db]} _]
     (when-let [socket (:socket db)]
      {:disconnect-ws socket})))
+
+(reg-event-fx
+  ::initial-route
+  (fn [{:keys [db]} _]
+    (if (:current-user db)
+      {:change-uri! "/dashboard"}
+      {:change-uri! "/sign-in"})))

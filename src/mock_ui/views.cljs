@@ -1,11 +1,12 @@
 (ns mock-ui.views
   (:require
-   [re-frame.core :as re-frame]
+   [re-frame.core :refer [subscribe dispatch]]
    [mock-ui.routes :as routes]
    [mock-ui.logistration-views :as logistration-views]
    [mock-ui.dashboard-views :as dashboard-views]
    [mock-ui.navigation-views :as navigation]
    [mock-ui.common-views :as common-views]
+   [mock-ui.events :as events]
    [mock-ui.subs :as subs]))
 
 ;; ---
@@ -20,13 +21,18 @@
 ;; Sign-In views
 ;; ---
 (defmethod routes/panels :dashboard-panel [] [dashboard-views/dashboard-view])
+;; ---
+;; Home
+;; ---
+(defmethod routes/panels :home-panel [] (dispatch [::events/initial-route]))
+
 
 ;; ---
 ;; Main
 ;; There is a routing logic
 ;; ----
 (defn main-panel []
-  (let [active-panel (re-frame/subscribe [::subs/active-panel])]
+  (let [active-panel (subscribe [::subs/active-panel])]
     [:div.h-full.lg:overflow-hidden.xl:overflow-hidden.2xl:overflow-hidden
      [common-views/alert]
      [navigation/navigation-bar]

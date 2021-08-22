@@ -11,7 +11,8 @@
 
 (def routes
   (atom
-    ["/" {"sign-up"   :sign-up
+    ["/" {""          :home
+          "sign-up"   :sign-up
           "sign-in"   :sign-in
           "dashboard" :dashboard}]))
 

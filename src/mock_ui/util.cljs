@@ -65,3 +65,11 @@
 (defn format
   [& args]
   (apply gstring/format args))
+
+(defn copy-to-clipboard! [text]
+  (let [el (.createElement js/document "textarea")]
+    (set! (.-value el) text)
+    (.appendChild (.-body js/document) el)
+    (.select el)
+    (js/document.execCommand "copy")
+    (.removeChild (.-body js/document) el)))
