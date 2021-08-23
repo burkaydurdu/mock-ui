@@ -107,23 +107,27 @@
                             [create-request-form])]])}))
 
 (defn- workspace-list-view []
-  [:div
-   [:p.text-2xl "Workspaces"]
-   (for [workspace @(subscribe [::subs/workspaces])]
-     ^{:key (:id workspace)}
-     [:div.w-full.flex.justify-between.py-1.cursor-pointer
-      {:on-click #(do
-                    (.stopPropagation %)
-                    (dispatch [::events/get-requests (:id workspace)]))}
-      [:p (:name workspace)]
-      [dropdown
-       {:options [{:title "Delete"
-                   :class "hover:text-red-500"
-                   :on-click-fn #(dispatch [::events/delete-workspace (:id workspace)])}]}]])
-   [:button
-    {:class "text-sm text-green-500"
-     :on-click #(dispatch [::events/add-data [:create-form :type] :workspace])}
-    "Add +"]])
+  (let [selected-workspace @(subscribe [::subs/workspace])]
+    [:div
+     [:p.text-2xl "Workspaces"]
+     (for [workspace @(subscribe [::subs/workspaces])]
+       ^{:key (:id workspace)}
+       [:div.w-full.flex.justify-between.py-1.cursor-pointer
+        {:class (when (= (:id workspace) (:id selected-workspace))
+                  "text-blue-500")
+         :on-click #(do
+                      (.stopPropagation %)
+                      (dispatch [::events/get-requests (:id workspace)]))}
+        [:p (:name workspace)]
+        [dropdown
+         {:class   "workspace-dropdown-box"
+          :options [{:title "Delete"
+                     :class "hover:text-red-500"
+                     :on-click-fn #(dispatch [::events/delete-workspace (:id workspace)])}]}]])
+     [:button
+      {:class "text-sm text-green-500"
+       :on-click #(dispatch [::events/add-data [:create-form :type] :workspace])}
+      "Add +"]]))
 
 (defn- request-list-view []
   [:div
@@ -135,7 +139,8 @@
       [:p
        {:class (str "rounded-l py-1 px-2 " (methods-color (:method request)))}
        (str (:method request))]
-      [:p.bg-green-100.rounded-r.py-1.px-2.w-full (:path request)]])
+      [:p.bg-green-100.rounded-r.py-1.px-2.w-full.break-all
+       (:path request)]])
    [:button
     {:class "text-sm text-green-500"
      :on-click #(dispatch [::events/add-data [:create-form :type] :request])}
@@ -320,9 +325,12 @@
 (defn- socket-message-box []
   (let [messages @(subscribe [::subs/socket-messages])]
     [:div.w-full.lg:overflow-y-auto.bg-gray-200.p-5.xl:ml-5.mc-main
-     [:p.text-2xl.flex.justify-between
+     [:div.text-2xl.flex.justify-between
       [:span.underline "Realtime Request Logs"]
-      [:span.live-icon]]
+      [:div.flex.items-center
+       [:span.far.fa-trash-alt.mr-5.cursor-pointer
+        {:on-click #(dispatch [::events/reset :socket-messages])}]
+       [:span.live-icon]]]
      (for [message messages]
        ^{:key (:createdAt message)}
        [:<>
@@ -330,7 +338,7 @@
          {:key (:createdAt message)
           :style {:font-size 11}
           :dangerouslySetInnerHTML {:__html (.toHtml prettyPrintJson (clj->js message))}}]
-        [:hr]])]))
+        [:hr.border-gray-300]])]))
 
 (defn- main-view []
   [:div.p-5.xl:h-screen

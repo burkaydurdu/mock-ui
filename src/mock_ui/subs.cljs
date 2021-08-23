@@ -30,9 +30,14 @@
     (:create-form db)))
 
 (reg-sub
+  ::workspace
+  (fn [db _]
+    (:workspace db)))
+
+(reg-sub
   ::selected-workspace
   (fn [db _]
-    (util/find-kv (:workspaces db) :id (-> db :selected :workspace))))
+    (util/find-kv (:workspaces db) :id (-> db :workspace :id))))
 
 (reg-sub
   ::modal-form-type

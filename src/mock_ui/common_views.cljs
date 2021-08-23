@@ -24,9 +24,9 @@
   (when @(subscribe [::subs/alert])
     [alert-box]))
 
-(defn dropdown [{:keys [options dropdown-class title]}]
+(defn dropdown [{:keys [options class title]}]
   [:div.dropdown.inline-block.relative
-   {:class dropdown-class}
+   {:class class}
    [:button.font-semibold.rounded.inline-flex.items-center
     (if title
       title

@@ -175,7 +175,7 @@
   ::get-requests
   (fn [{:keys [db]} [_ workspace-id]]
     {:db         (-> db
-                     (assoc-in [:selected :workspace] workspace-id)
+                     (assoc-in [:workspace :id] workspace-id)
                      (dissoc :request :requests :responses))
      :http-xhrio (helper/create-request-map :get (str "/requests/workspace/" workspace-id)
                                             ::get-requests-result-ok)
@@ -205,7 +205,7 @@
   ::create-request
   (fn [{:keys [db]} _]
     (let [form      (-> db :create-form :request)
-          workspace (-> db :selected :workspace)]
+          workspace (-> db :workspace :id)]
       (when (and workspace (util/contains-many? form :method :path))
        {:http-xhrio (merge (helper/create-request-map :post "/requests"
                                                       ::create-request-result-ok)
@@ -232,7 +232,8 @@
   ::update-request-result-ok
   (fn [{:keys [db]} [_ result]]
     {:dispatch [::alert "Success" "Updated request"]
-     :db (assoc db :requests (util/find-and-all-update :id (:id result) result (:requests db)))}))
+     :db (assoc db :requests (util/find-and-all-update :id (:id result) result (:requests db))
+                   :request result)}))
 
 (reg-event-fx
   ::delete-request
@@ -332,13 +333,13 @@
 (reg-event-db
   ::remove-dashboard-data
   (fn [db _]
-    (dissoc db :workspaces :selected :requests :request :responses)))
+    (dissoc db :workspaces :workspace :requests :request :responses)))
 
 (reg-event-fx
   ::connect-ws
   (fn [{:keys [db]} _]
     (let [user-id      (-> db :current-user :id)
-          workspace-id (-> db :selected :workspace) ;; [TODO] Change data structure
+          workspace-id (-> db :workspace :id)
           request-id   (-> db :request :id)]
       {:connect-ws (helper/socket-connection-url user-id workspace-id request-id)})))
 
