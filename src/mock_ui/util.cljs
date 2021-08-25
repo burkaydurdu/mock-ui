@@ -1,5 +1,8 @@
 (ns mock-ui.util
-  (:require [goog.string :as gstring]))
+  (:require [goog.string :as gstring]
+            ["moment" :as js-moment]))
+
+(def not-nil? (complement nil?))
 
 (defn dissoc-in
   ([m ks]
@@ -73,3 +76,18 @@
     (.select el)
     (js/document.execCommand "copy")
     (.removeChild (.-body js/document) el)))
+
+(defn moment
+  "Wraps a Moment object."
+  ([] (js-moment))
+  ([some-date] (.parseZone js-moment some-date)))
+
+(defn format-date
+  [moment-date str-format]
+  (.format moment-date str-format))
+
+(defn json-check? [json-content]
+  (try
+    (not-nil? (.parse js/JSON json-content))
+    (catch js/Error _
+      false)))

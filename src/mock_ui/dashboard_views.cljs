@@ -123,7 +123,9 @@
          {:class   "workspace-dropdown-box"
           :options [{:title "Delete"
                      :class "hover:text-red-500"
-                     :on-click-fn #(dispatch [::events/delete-workspace (:id workspace)])}]}]])
+                     :on-click-fn #(do
+                                     (.stopPropagation %)
+                                     (dispatch [::events/delete-workspace (:id workspace)]))}]}]])
      [:button
       {:class "text-sm text-green-500"
        :on-click #(dispatch [::events/add-data [:create-form :type] :workspace])}
@@ -142,7 +144,8 @@
       [:p.bg-green-100.rounded-r.py-1.px-2.w-full.break-all
        (:path request)]])
    [:button
-    {:class "text-sm text-green-500"
+    {:class    "text-sm text-green-500"
+     :disabled (nil? @(subscribe [::subs/workspace]))
      :on-click #(dispatch [::events/add-data [:create-form :type] :request])}
     "Add +"]])
 
@@ -152,12 +155,13 @@
    [:select.block
      {:class     (str select-class-text " py-3 px-4 pr-8 rounded")
       :on-change #(dispatch [::events/add-data [:response :code] (-> % .-target .-value js/parseInt)])}
-     (for [status-code http-status-codes]
+     (doall
+      (for [status-code http-status-codes]
        ^{:key (str "active-status-code-" (:code status-code))}
        [:option
         {:selected (= @(subscribe [::subs/response-code]) (:code status-code))
          :value    (:code status-code)}
-        (str (:code status-code) ": " (:text status-code))])]])
+        (str (:code status-code) ": " (:text status-code))]))]])
 
 (defn- status-code [code]
   [:div.flex.items-center
@@ -208,12 +212,13 @@
   [:select.block.my-2
     {:on-change #(dispatch [::events/add-data [:response :type] (-> % .-target .-value)])
      :class     (str select-class-text " py-3 px-4 pr-8 rounded")}
-    (for [mime-type mime-types]
-      ^{:key (str "active-body-type-" (:type mime-type))}
-      [:option
-       {:selected (= @(subscribe [::subs/response-type]) (:type mime-type))
-        :value    (:type mime-type)}
-       (:text mime-type)])])
+    (doall
+      (for [mime-type mime-types]
+        ^{:key (str "active-body-type-" (:type mime-type))}
+        [:option
+         {:selected (= @(subscribe [::subs/response-type]) (:type mime-type))
+          :value    (:type mime-type)}
+         (:text mime-type)]))])
 
 (defn- active-body-field []
   [:div.mt-5
@@ -223,7 +228,11 @@
     {:class       (str input-class-text " w-full py-2 px-3 rounded")
      :value       @(subscribe [::subs/response-body])
      :on-change   #(dispatch [::events/add-data [:response :body] (-> % .-target .-value)])
-     :placeholder "Body"}]])
+     :placeholder "Body"}]
+   (when (false? @(subscribe [::subs/response-valid?]))
+     [:p.text-red-400
+      [:span.fas.fa-exclamation.mr-2]
+      [:span "Invalid body, please check your body field"]])])
 
 (defn- body-field [id body mime-type]
   [:div
@@ -231,11 +240,15 @@
     [:span.text-2xl.mr-1 "Body"]
     [:span.text-indigo-500 (some #(when (= (:type %) mime-type) (:text %)) mime-types)]]
    [:div.border.rounded.p-3.bg-gray-200.whitespace-pre-wrap
-    (if (= mime-type "JSON")
-      [:pre.whitespace-pre-wrap
-       {:key id
-        :dangerouslySetInnerHTML {:__html (.toHtml prettyPrintJson (.parse js/JSON body))}}]
-      body)]])
+    (when body
+      (if (= mime-type "JSON")
+        (try
+          [:pre.whitespace-pre-wrap
+           {:key id
+            :dangerouslySetInnerHTML {:__html (.toHtml prettyPrintJson (.parse js/JSON body))}}]
+          (catch js/Error _
+            body))
+        body))]])
 
 (defn- response-list-view []
   [:div.w-full.mt-2.pb-2
@@ -280,7 +293,7 @@
      :on-click #(dispatch [::events/update-request])}
     "Update"]
    [:button
-    {:class (str "p-1 bg-transparent rounded border-2 shadow bg-white border-red-500 text-red-500")
+    {:class    (str "p-1 bg-transparent rounded border-2 shadow bg-white border-red-500 text-red-500")
      :on-click #(dispatch [::events/delete-request])}
     "Delete"]])
 
@@ -340,6 +353,11 @@
           :dangerouslySetInnerHTML {:__html (.toHtml prettyPrintJson (clj->js message))}}]
         [:hr.border-gray-300]])]))
 
+(defn- response-note-box []
+  [:p.mt-2.text-gray-400
+   [:span.fas.fa-exclamation.mr-2]
+   [:span "If you add the " [:b "statusCode "] "in the query parameter, you can see the below responses."]])
+
 (defn- main-view []
   [:div.p-5.xl:h-screen
    (if-let [request @(subscribe [::subs/request])]
@@ -347,6 +365,7 @@
        [:div.w-full.xl:overflow-y-auto.mc-main
          [base-url]
          [request-box-view request]
+         [response-note-box]
          [response-list-view]]
       [socket-message-box]]
      [empty-box])])
@@ -357,9 +376,9 @@
      :component-will-unmount #(dispatch [::events/remove-dashboard-data])
      :reagent-render (fn []
                        [:div.relative.min-h-screen.lg:flex
-                        [:div.xl:w-72.md:w-full.shadow-md.p-5.lg:shadow-none
+                        [:div.xl:w-72.md:w-full.shadow-md.p-5.lg:shadow-none.xl:overflow-y-auto.mc-main
                          [workspace-list-view]]
-                        [:div.xl:w-72.md:w-full.shadow-md.p-5
+                        [:div.xl:w-72.md:w-full.shadow-md.p-5.xl:overflow-y-auto.mc-main
                          [request-list-view]]
                         [:div.xl:flex-1.md:w-full
                          [main-view]]

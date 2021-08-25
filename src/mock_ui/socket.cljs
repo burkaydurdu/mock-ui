@@ -1,6 +1,7 @@
 (ns mock-ui.socket
   (:require [re-frame.core :refer [dispatch]]
-            [mock-ui.events :as events]))
+            [mock-ui.events :as events]
+            [mock-ui.util :as util]))
 
 (defn- create-ws [url]
   (js/WebSocket. url))
@@ -11,7 +12,7 @@
 (defn- handle-ws-msg [msg]
   (dispatch [::events/update-data [:socket-messages] conj
              (merge (js->clj (.parse js/JSON (.-data msg)) :keywordize-keys true)
-                    {:createdAt (.toISOString (js/Date.))})]))
+                    {:createdAt (-> (util/moment) (util/format-date "DD/MM/yyyy HH:mm"))})]))
 
 (defn connect-ws [url]
   (let [socket (create-ws url)]

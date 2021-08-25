@@ -1,6 +1,7 @@
 (ns mock-ui.events
   (:require
    [re-frame.core :refer [reg-event-fx reg-event-db inject-cofx]]
+   [clojure.string :as str]
    [mock-ui.db :as db]
    [mock-ui.util :as util]
    [mock-ui.helper :as helper]
@@ -169,7 +170,10 @@
 (reg-event-db
   ::delete-workspace-result-ok
   (fn [db [_ result]]
-    (assoc db :workspaces (filterv #(not= (:id result) (:id %)) (:workspaces db)))))
+    (let [active? (= (:id result) (-> db :workspace :id))]
+      (-> db
+          (assoc :workspaces (filterv #(not= (:id result) (:id %)) (:workspaces db)))
+          (#(if active? (dissoc % :workspace :request :requests) %))))))
 
 (reg-event-fx
   ::get-requests
@@ -261,12 +265,17 @@
                         :headers   headers
                         :mimeType  (:type response)
                         :body      (:body response)
-                        :requestId request-id}]
-      (when request-id
-        {:http-xhrio (merge (helper/create-request-map :post "/responses"
-                                                       ::create-response-result-ok
-                                                       ::create-response-result-fail)
-                            {:params request-body})}))))
+                        :requestId request-id}
+          valid?       (or (str/blank? (:body response))
+                           (= (:type response) "XML")
+                           (and (= (:type response) "JSON")
+                                (util/json-check? (:body response))))]
+     (cond
+       (and request-id valid?) {:http-xhrio (merge (helper/create-request-map :post "/responses"
+                                                                              ::create-response-result-ok
+                                                                              ::create-response-result-fail)
+                                                   {:params request-body})}
+       (false? valid?)         {:db (assoc-in db [:response :valid?] false)}))))
 
 (reg-event-db
   ::create-response-result-ok
@@ -277,7 +286,9 @@
 
 (reg-event-fx
   ::create-response-result-fail
-  (constantly {:dispatch [::alert "Error" "Something went wrong" true]}))
+  (fn [{:keys [db]} _]
+    {:db       (assoc-in db [:response :valid?] true)
+     :dispatch [::alert "Error" "Something went wrong" true]}))
 
 (reg-event-fx
   ::update-response
@@ -290,11 +301,17 @@
                         :code      (:code response)
                         :headers   headers
                         :mimeType  (:type response)
-                        :body      (:body response)}]
-      {:http-xhrio (merge (helper/create-request-map :put "/responses"
-                                                     ::update-response-result-ok
-                                                     ::update-response-result-fail)
-                          {:params request-body})})))
+                        :body      (:body response)}
+          valid?       (or (str/blank? (:body response))
+                           (= (:type response) "XML")
+                           (and (= (:type response) "JSON")
+                                (util/json-check? (:body response))))]
+      (if valid?
+        {:http-xhrio (merge (helper/create-request-map :put "/responses"
+                                                       ::update-response-result-ok
+                                                       ::update-response-result-fail)
+                            {:params request-body})}
+        {:db (assoc-in db [:response :valid?] false)}))))
 
 (reg-event-db
   ::update-response-result-ok
@@ -304,7 +321,9 @@
 
 (reg-event-fx
   ::update-response-result-fail
-  (constantly {:dispatch [::alert "Something went wrong" true]}))
+  (fn [{:keys [db]} _]
+    {:db       (assoc-in db [:response :valid?] true)
+     :dispatch [::alert "Error" "Something went wrong" true]}))
 
 (reg-event-fx
   ::delete-response
@@ -321,14 +340,15 @@
   (fn [{:keys [db]} _]
     (when (:current-user db)
       {:http-xhrio (helper/create-request-map :post "/users/logout"
-                                              ::logout-result-ok)})))
+                                              ::logout-result
+                                              ::logout-result)})))
 
 (reg-event-fx
-  ::logout-result-ok
+  ::logout-result
   (fn [{:keys [db]} _]
-    {:db (dissoc db :current-user)
+    {:db           (dissoc db :current-user)
      :remove-user! "user"
-     :change-uri! "/sign-in"}))
+     :change-uri!  "/sign-in"}))
 
 (reg-event-db
   ::remove-dashboard-data

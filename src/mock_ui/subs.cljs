@@ -106,6 +106,12 @@
     (:type response)))
 
 (reg-sub
+  ::response-valid?
+  :<- [::response]
+  (fn [response _]
+    (:valid? response)))
+
+(reg-sub
   ::modal-visible?
   (fn [db]
     (:modal-visible? db)))
