@@ -33,7 +33,7 @@
 ;; ----
 (defn main-panel []
   (let [active-panel (subscribe [::subs/active-panel])]
-    [:div.h-full.lg:overflow-hidden.xl:overflow-hidden.2xl:overflow-hidden
+    [:div.h-full.md:overflow-hidden
      [common-views/alert]
      [navigation/navigation-bar]
      (routes/panels @active-panel)]))

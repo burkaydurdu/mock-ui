@@ -99,7 +99,9 @@
 
 (reg-event-fx
   ::sign-up-result-ok
-  (constantly {:dispatch [::alert "Success" "Register is successful"]}))
+  (constantly
+    {:dispatch    [::alert "Success" "Register is successful"]
+     :change-uri! "/sign-in"}))
 
 (reg-event-fx
   ::sign-up-result-fail

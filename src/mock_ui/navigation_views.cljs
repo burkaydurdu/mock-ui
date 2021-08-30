@@ -10,7 +10,9 @@
     [:nav.bg-gray-800
      [:div.flex.justify-between.items-center.px-5.h-16
       [:div
-       [:h1.text-white.font-bold.text-2xl "Mock"]]
+       [:h1.text-white.font-bold.text-2xl
+        [:span "Puppet"]
+        [:span.text-green-500 "API"]]]
       (when current-user
         [:div.text-white
          [dropdown

@@ -33,7 +33,8 @@
      { re-frame.trace.trace-enabled? true
        day8.re-frame.tracing.trace-enabled? true}}}
    :release
-   {:closure-defines {mock-ui.helper.api_url "https://api.monitoui.com/v1"}
+   {:closure-defines {mock-ui.helper.api_url "https://api.puppetapi.com"
+                      mock-ui.helper.socket_url "wss://api.puppetapi.com"}
     :build-options
     {:ns-aliases
      {day8.re-frame.tracing day8.re-frame.tracing-stubs}}}}

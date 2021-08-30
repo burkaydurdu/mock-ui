@@ -106,49 +106,6 @@
                             [create-workspace-form]
                             [create-request-form])]])}))
 
-(defn- workspace-list-view []
-  (let [selected-workspace @(subscribe [::subs/workspace])]
-    [:div
-     [:p.text-2xl "Workspaces"]
-     (for [workspace @(subscribe [::subs/workspaces])]
-       ^{:key (:id workspace)}
-       [:div.w-full.flex.justify-between.py-1.cursor-pointer
-        {:class (when (= (:id workspace) (:id selected-workspace))
-                  "text-blue-500")
-         :on-click #(do
-                      (.stopPropagation %)
-                      (dispatch [::events/get-requests (:id workspace)]))}
-        [:p (:name workspace)]
-        [dropdown
-         {:class   "workspace-dropdown-box"
-          :options [{:title "Delete"
-                     :class "hover:text-red-500"
-                     :on-click-fn #(do
-                                     (.stopPropagation %)
-                                     (dispatch [::events/delete-workspace (:id workspace)]))}]}]])
-     [:button
-      {:class "text-sm text-green-500"
-       :on-click #(dispatch [::events/add-data [:create-form :type] :workspace])}
-      "Add +"]]))
-
-(defn- request-list-view []
-  [:div
-   [:p.text-2xl "Requests"]
-   (for [request @(subscribe [::subs/requests])]
-     ^{:key (:id request)}
-     [:div.w-full.flex.py-1.cursor-pointer
-      {:on-click #(dispatch [::events/get-responses request])}
-      [:p
-       {:class (str "rounded-l py-1 px-2 " (methods-color (:method request)))}
-       (str (:method request))]
-      [:p.bg-green-100.rounded-r.py-1.px-2.w-full.break-all
-       (:path request)]])
-   [:button
-    {:class    "text-sm text-green-500"
-     :disabled (nil? @(subscribe [::subs/workspace]))
-     :on-click #(dispatch [::events/add-data [:create-form :type] :request])}
-    "Add +"]])
-
 (defn- active-status-code []
   [:div.mb-2
    [:p.text-xl.mb-1 "Status Code"]
@@ -337,7 +294,7 @@
 
 (defn- socket-message-box []
   (let [messages @(subscribe [::subs/socket-messages])]
-    [:div.w-full.lg:overflow-y-auto.bg-gray-200.p-5.xl:ml-5.mc-main
+    [:div.w-full.xl:overflow-y-auto.bg-gray-200.p-5.xl:ml-5.socket-message-box
      [:div.text-2xl.flex.justify-between
       [:span.underline "Realtime Request Logs"]
       [:div.flex.items-center
@@ -347,7 +304,7 @@
      (for [message messages]
        ^{:key (:createdAt message)}
        [:<>
-        [:pre.whitespace-pre-wrap.py-5
+        [:pre.whitespace-pre-wrap.break-all.py-5
          {:key (:createdAt message)
           :style {:font-size 11}
           :dangerouslySetInnerHTML {:__html (.toHtml prettyPrintJson (clj->js message))}}]
@@ -358,31 +315,84 @@
    [:span.fas.fa-exclamation.mr-2]
    [:span "If you add the " [:b "statusCode "] "in the query parameter, you can see the below responses."]])
 
-(defn- main-view []
+(defn- request-action-box [request]
+  [:div.w-full.xl:overflow-y-auto.request-action-box
+    [base-url]
+    [request-box-view request]
+    [response-note-box]
+    [response-list-view]])
+
+(defn- main-box []
   [:div.p-5.xl:h-screen
    (if-let [request @(subscribe [::subs/request])]
-     [:div.xl:flex.xl:justify-between.lg:overflow-y-auto
-       [:div.w-full.xl:overflow-y-auto.mc-main
-         [base-url]
-         [request-box-view request]
-         [response-note-box]
-         [response-list-view]]
+     [:div.xl:flex.xl:justify-between.md:overflow-y-auto.main-box
+      [request-action-box request]
       [socket-message-box]]
      [empty-box])])
 
+(defn- workspace-list-view []
+ [:<>
+  (for [workspace @(subscribe [::subs/workspaces])]
+    ^{:key (:id workspace)}
+    [:div.w-full.flex.justify-between.py-1.cursor-pointer
+     {:class    (when (= (:id workspace) (:id @(subscribe [::subs/workspace])))
+                  "text-blue-500")
+      :on-click #(do
+                   (.stopPropagation %)
+                   (dispatch [::events/get-requests (:id workspace)]))}
+     [:p (:name workspace)]
+     [dropdown
+      {:class   "workspace-dropdown-box"
+       :options [{:title "Delete"
+                  :class "hover:text-red-500"
+                  :on-click-fn #(do
+                                  (.stopPropagation %)
+                                  (dispatch [::events/delete-workspace (:id workspace)]))}]}]])])
+
+(defn- workspace-list-box []
+  [:div.md:h-full.md:overflow-y-auto
+   [:p.text-2xl "Workspaces"]
+   [workspace-list-view]
+   [:button
+    {:class "text-sm text-green-500"
+     :on-click #(dispatch [::events/add-data [:create-form :type] :workspace])}
+    "Add +"]])
+
+(defn- request-list-view []
+  [:<>
+   (for [request @(subscribe [::subs/requests])]
+     ^{:key (:id request)}
+     [:div.w-full.flex.py-1.cursor-pointer
+      {:on-click #(dispatch [::events/get-responses request])}
+      [:p
+       {:class (str "rounded-l py-1 px-2 " (methods-color (:method request)))}
+       (str (:method request))]
+      [:p.bg-green-100.rounded-r.py-1.px-2.w-full.break-all
+       (:path request)]])])
+
+(defn- request-list-box []
+  [:div.md:h-full.md:overflow-y-auto
+   [:p.text-2xl "Requests"]
+   [request-list-view]
+   [:button
+    {:class    "text-sm text-green-500"
+     :disabled (nil? @(subscribe [::subs/workspace]))
+     :on-click #(dispatch [::events/add-data [:create-form :type] :request])}
+    "Add +"]])
+
 (defn dashboard-view []
   (r/create-class
-    {:component-did-mount #(dispatch [::events/get-workspaces])
+    {:component-did-mount    #(dispatch [::events/get-workspaces])
      :component-will-unmount #(dispatch [::events/remove-dashboard-data])
-     :reagent-render (fn []
-                       [:div.relative.min-h-screen.lg:flex
-                        [:div.xl:w-72.md:w-full.shadow-md.p-5.lg:shadow-none.xl:overflow-y-auto.mc-main
-                         [workspace-list-view]]
-                        [:div.xl:w-72.md:w-full.shadow-md.p-5.xl:overflow-y-auto.mc-main
-                         [request-list-view]]
-                        [:div.xl:flex-1.md:w-full
-                         [main-view]]
-                        (when @(subscribe [::subs/modal-visible?])
-                          [create-modal-view])
-                        (when-let [modal-type @(subscribe [::subs/modal-form-type])]
-                         [create-modal-form modal-type])])}))
+     :reagent-render         (fn []
+                               [:div.relative.min-h-screen.md:flex
+                                [:div.md:w-72.sm:w-full.shadow-md.p-5.mc-main.md:flex.md:flex-col.md:justify-between
+                                 [workspace-list-box]
+                                 [:hr]
+                                 [request-list-box]]
+                                [:div.md:flex-1.md:w-full
+                                 [main-box]]
+                                (when @(subscribe [::subs/modal-visible?])
+                                  [create-modal-view])
+                                (when-let [modal-type @(subscribe [::subs/modal-form-type])]
+                                 [create-modal-form modal-type])])}))

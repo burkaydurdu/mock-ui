@@ -17,7 +17,8 @@
        (:id @(subscribe [::subs/current-user]))
        "/"
        (:name @(subscribe [::subs/selected-workspace]))
-       "/"))
+       "/"
+       (:path @(subscribe [::subs/request]))))
 
 (defn create-request-map
   ([type uri]

@@ -1,5 +1,6 @@
 (ns mock-ui.util
   (:require [goog.string :as gstring]
+            [goog.string.format]
             ["moment" :as js-moment]))
 
 (def not-nil? (complement nil?))
