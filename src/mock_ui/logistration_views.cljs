@@ -5,15 +5,17 @@
             [re-frame.core :refer [dispatch]]))
 
 (defn- input-view [{:keys [text type path]}]
-  [:div.mb-4
-   [:label.block.text-gray-700.text-sm.font-bold.mb-2
-    {:for text}
-    (str/capitalize text)]
-   [:input.shadow.appearance-none.border.rounded.w-full.py-2.px-3.text-gray-700.leading-tight.focus:outline-none.focus:shadow-outline
-    {:id          text
-     :placeholder (str/capitalize text)
-     :type        type
-     :on-change   #(dispatch [::events/add-data path (-> % .-target .-value)])}]])
+  (let [id (str "input-" (str/replace text #" " "-"))]
+    [:div.mb-4
+     [:label.block.text-gray-700.text-sm.font-bold.mb-2
+      {:for id}
+      (str/capitalize text)]
+     [:input.shadow.appearance-none.border.rounded.w-full.py-2.px-3.text-gray-700.leading-tight.focus:outline-none.focus:shadow-outline
+      {:id            id
+       :auto-complete "on"
+       :placeholder   (str/capitalize text)
+       :type          type
+       :on-change     #(dispatch [::events/add-data path (-> % .-target .-value)])}]]))
 
 (defn- button-view [{:keys [text action]}]
   [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.focus:outline-none.focus:shadow-outline
