@@ -1,6 +1,8 @@
 (ns mock-ui.util
   (:require [goog.string :as gstring]
             [goog.string.format]
+            [cemerick.url :as url]
+            [clojure.walk :as walk]
             ["moment" :as js-moment]))
 
 (def not-nil? (complement nil?))
@@ -92,3 +94,6 @@
     (not-nil? (.parse js/JSON json-content))
     (catch js/Error _
       false)))
+
+(defn get-query-params []
+  (some-> js/window .-location .-href url/url :query walk/keywordize-keys))

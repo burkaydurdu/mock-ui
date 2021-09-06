@@ -23,7 +23,7 @@
   ::set-active-panel
   (fn-traced [{:keys [db]} [_ active-panel]]
              (let [current-user (:current-user db)
-                   case-1 (when (#{:sign-in-panel :sign-up-panel} active-panel)
+                   case-1 (when (#{:sign-in-panel :sign-up-panel :send-reset-password-panel :reset-password-panel} active-panel)
                             (if current-user :dashboard-panel active-panel))
                    case-2 (when (= :dashboard-panel active-panel)
                            (if current-user active-panel :sign-in-panel))
@@ -377,3 +377,48 @@
     (if (:current-user db)
       {:change-uri! "/dashboard"}
       {:change-uri! "/sign-in"})))
+
+(reg-event-fx
+  ::send-reset-password
+  (fn [{:keys [db]} _]
+    (when-let [email (-> db :send-reset-password :form :email)]
+      {:http-xhrio (merge (helper/create-request-map :post "/users/send_reset_password"
+                                                     ::send-reset-password-result-ok
+                                                     ::send-reset-password-result-fail)
+                          {:params {:email email}})})))
+
+(reg-event-fx
+  ::send-reset-password-result-ok
+  (constantly
+   {:dispatch    [::alert "Success" "Please, check your email box"]
+    :change-uri! "/sign-in"}))
+
+(reg-event-fx
+  ::send-reset-password-result-fail
+  (constantly
+   {:dispatch [::alert "Error" "Something went wrong, please try again" true]}))
+
+(reg-event-fx
+  ::reset-password
+  (fn [{:keys [db]} _]
+    (let [form         (-> db :reset-password :form)
+          query-params (util/get-query-params)]
+      (when (and (:hash query-params)
+                 (util/contains-many? form :password :password-confirm)
+                 (= (:password form) (:password-confirm form)))
+        {:http-xhrio (merge (helper/create-request-map :post "/users/reset_password"
+                                                       ::reset-password-result-ok
+                                                       ::reset-password-result-fail)
+                            {:params {:password (:password form)
+                                      :hash     (:hash query-params)}})}))))
+
+(reg-event-fx
+  ::reset-password-result-ok
+  (constantly
+   {:dispatch    [::alert "Success" "Changed your password"]
+    :change-uri! "/sign-in"}))
+
+(reg-event-fx
+  ::reset-password-result-fail
+  (constantly
+   {:dispatch [::alert "Error" "Something went wrong, please try again" true]}))

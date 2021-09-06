@@ -11,10 +11,12 @@
 
 (def routes
   (atom
-    ["/" {""          :home
-          "sign-up"   :sign-up
-          "sign-in"   :sign-in
-          "dashboard" :dashboard}]))
+    ["/" {""                    :home
+          "sign-up"             :sign-up
+          "sign-in"             :sign-in
+          "dashboard"           :dashboard
+          "send-reset-password" :send-reset-password
+          "reset-password"      :reset-password}]))
 
 (defn parse
   [url]

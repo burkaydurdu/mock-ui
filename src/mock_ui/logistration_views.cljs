@@ -23,6 +23,37 @@
     :on-click #(dispatch [action])}
    text])
 
+(defn send-reset-password-view []
+  (r/create-class
+    {:component-will-unmount #(dispatch [::events/reset :send-reset-password])
+     :reagent-render (fn []
+                       [:div.h-full.flex.justify-center.items-center
+                        [:div.w-full.max-w-xs
+                         [:form.bg-white.shadow-md.rounded.px-8.pt-6.pb-8.mb-4
+                          [input-view {:text "email" :type "text" :path [:send-reset-password :form :email]}]
+                          [:div.text-center
+                           [button-view {:text "Send" :action ::events/send-reset-password}]]
+                          [:div.text-center.mt-5
+                           [:a.underline
+                            {:href "/sign-in"}
+                            "Log in"]]]]])}))
+
+(defn reset-password-view []
+  (r/create-class
+    {:component-will-unmount #(dispatch [::events/reset :reset-password])
+     :reagent-render (fn []
+                       [:div.h-full.flex.justify-center.items-center
+                        [:div.w-full.max-w-xs
+                         [:form.bg-white.shadow-md.rounded.px-8.pt-6.pb-8.mb-4
+                          [input-view {:text "new password" :type "password" :path [:reset-password :form :password]}]
+                          [input-view {:text "new password confirm" :type "password" :path [:reset-password :form :password-confirm]}]
+                          [:div.text-center
+                           [button-view {:text "Change Password" :action ::events/reset-password}]]
+                          [:div.text-center.mt-5
+                           [:a.underline
+                            {:href "/sign-in"}
+                            "Log in"]]]]])}))
+
 (defn sign-up-view []
   (r/create-class
     {:component-will-unmount #(dispatch [::events/reset :sign-up])
@@ -39,7 +70,7 @@
                           [:div.text-center.mt-5
                            [:a.underline
                             {:href "/sign-in"}
-                            "Sign-In"]]]]])}))
+                            "Log in"]]]]])}))
 
 (defn sign-in-view []
   (r/create-class
@@ -50,9 +81,13 @@
                          [:form.bg-white.shadow-md.rounded.px-8.pt-6.pb-8.mb-4
                           [input-view {:text "email" :type "text" :path [:sign-in :form :email]}]
                           [input-view {:text "password" :type "password" :path [:sign-in :form :password]}]
+                          [:div.mb-5
+                           [:a
+                            {:href "/send-reset-password"}
+                            "Forgot your password?"]]
                           [:div.text-center
                            [button-view {:text "Sign-in" :action ::events/sign-in}]]
                           [:div.text-center.mt-5
                            [:a.underline
                             {:href "/sign-up"}
-                            "Sign-Up"]]]]])}))
+                            "Sign up"]]]]])}))

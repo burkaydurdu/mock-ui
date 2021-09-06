@@ -10,6 +10,14 @@
    [mock-ui.subs :as subs]))
 
 ;; ---
+;; Reset Password views
+;; ---
+(defmethod routes/panels :reset-password-panel [] [logistration-views/reset-password-view])
+;; ---
+;; Send Reset Password views
+;; ---
+(defmethod routes/panels :send-reset-password-panel [] [logistration-views/send-reset-password-view])
+;; ---
 ;; Sign-Up views
 ;; ---
 (defmethod routes/panels :sign-up-panel [] [logistration-views/sign-up-view])
